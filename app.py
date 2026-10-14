@@ -1,17 +1,8 @@
 from flask import Flask, request, jsonify, render_template
-from transformers import pipeline
-from pymongo import MongoClient
-from datetime import datetime
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 app = Flask(__name__)
-analyzer = pipeline("sentiment-analysis",
-                    model="distilbert-base-uncased-finetuned-sst-2-english")
-
-# MongoDB is optional; the app still works without it
-try:
-    db = MongoClient("mongodb://localhost:27017")["sentiment"]["results"]
-except Exception:
-    db = None
+analyzer = SentimentIntensityAnalyzer()
 
 @app.route("/")
 def home():
@@ -22,16 +13,14 @@ def analyze():
     texts = request.json.get("texts", [])
     results = []
     for text in texts:
-        out = analyzer(text[:512])[0]          # model input limit
-        label = out["label"].lower()           # 'positive' / 'negative'
-        score = round(out["score"], 3)
-        if score < 0.6:                        # low confidence = neutral
+        score = analyzer.polarity_scores(text)["compound"]   # -1 (negative) to +1 (positive)
+        if score >= 0.05:
+            label = "positive"
+        elif score <= -0.05:
+            label = "negative"
+        else:
             label = "neutral"
-        record = {"text": text, "sentiment": label, "score": score,
-                  "time": datetime.utcnow().isoformat()}
-        if db is not None:
-            db.insert_one(record.copy())
-        results.append(record)
+        results.append({"text": text, "sentiment": label, "score": round(score, 3)})
     return jsonify(results)
 
 if __name__ == "__main__":
