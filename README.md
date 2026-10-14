@@ -4,9 +4,7 @@ A Flask web app that reads product reviews and labels each one as positive, nega
 
 ## Technologies
 - Python, Flask
-- Hugging Face Transformers (DistilBERT SST-2)
-- MongoDB (optional, for storing results)
-
+- VADER sentiment analysis (vaderSentiment)
 ## Setup
 pip install -r requirements.txt
 python app.py
