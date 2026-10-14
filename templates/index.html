@@ -1,23 +1,313 @@
 <!DOCTYPE html>
-<html>
-<head><title>Sentiment Analyzer</title></head>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Review Sentiment Analyzer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+    min-height: 100vh;
+    color: #1e293b;
+    padding: 40px 16px;
+  }
+
+  .container { max-width: 760px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 { font-size: 2rem; color: #1e3a8a; margin-bottom: 8px; }
+  header p { color: #64748b; font-size: 0.98rem; }
+
+  .card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    margin-bottom: 24px;
+  }
+
+  label { display: block; font-weight: 600; margin-bottom: 10px; color: #334155; }
+
+  textarea {
+    width: 100%;
+    min-height: 160px;
+    padding: 14px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 0.97rem;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  }
+
+  .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 12px; flex-wrap: wrap; }
+  .hint { font-size: 0.85rem; color: #94a3b8; }
+
+  button {
+    background: linear-gradient(135deg, #4f46e5, #2563eb);
+    color: #fff;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s;
+  }
+  button:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3); }
+  button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Summary */
+  .summary { display: none; }
+  .summary h2 { font-size: 1.1rem; margin-bottom: 16px; color: #334155; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+  .stat {
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat .num { font-size: 1.7rem; font-weight: 700; }
+  .stat .lbl { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat.positive { background: #dcfce7; color: #166534; }
+  .stat.negative { background: #fee2e2; color: #991b1b; }
+  .stat.neutral  { background: #e2e8f0; color: #334155; }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 0.9rem; }
+  .bar-row span.name { width: 72px; color: #475569; }
+  .bar-track { flex: 1; height: 10px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; }
+  .bar-fill.positive { background: #22c55e; }
+  .bar-fill.negative { background: #ef4444; }
+  .bar-fill.neutral  { background: #94a3b8; }
+  .bar-row span.pct { width: 48px; text-align: right; color: #475569; }
+
+  /* Results */
+  .results { display: none; }
+  .results h2 { font-size: 1.1rem; margin-bottom: 14px; color: #334155; }
+  .result-item {
+    border-left: 4px solid #cbd5e1;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    animation: fadeIn 0.3s ease;
+  }
+  .result-item.positive { border-left-color: #22c55e; }
+  .result-item.negative { border-left-color: #ef4444; }
+  .result-item.neutral  { border-left-color: #94a3b8; }
+  .result-text { font-size: 0.95rem; line-height: 1.5; word-break: break-word; }
+  .badge {
+    flex-shrink: 0;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: capitalize;
+    white-space: nowrap;
+  }
+  .badge.positive { background: #dcfce7; color: #166534; }
+  .badge.negative { background: #fee2e2; color: #991b1b; }
+  .badge.neutral  { background: #e2e8f0; color: #334155; }
+  .score { display: block; font-size: 0.75rem; color: #94a3b8; font-weight: 500; margin-top: 4px; text-align: right; }
+
+  .error {
+    display: none;
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 0.93rem;
+  }
+
+  .spinner {
+    display: none;
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .loading .spinner { display: inline-block; }
+
+  footer { text-align: center; color: #94a3b8; font-size: 0.85rem; margin-top: 32px; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  @media (max-width: 560px) {
+    .stats { grid-template-columns: 1fr; }
+    header h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
 <body>
-<h2>Product Review Sentiment</h2>
-<textarea id="input" rows="8" cols="60"
-  placeholder="One review per line"></textarea><br>
-<button onclick="run()">Analyze</button>
-<pre id="output"></pre>
+<div class="container">
+
+  <header>
+    <h1>Product Review Sentiment</h1>
+    <p>Paste customer reviews below and instantly see whether each one is positive, negative or neutral.</p>
+  </header>
+
+  <div class="card">
+    <div id="error" class="error"></div>
+
+    <label for="input">Customer reviews</label>
+    <textarea id="input" placeholder="Enter one review per line...&#10;&#10;Example:&#10;The product works great and arrived on time.&#10;Terrible quality, broke after two days."></textarea>
+
+    <div class="actions">
+      <span class="hint" id="count">0 reviews entered</span>
+      <button id="analyzeBtn" onclick="run()"><span class="spinner"></span><span id="btnText">Analyze Reviews</span></button>
+    </div>
+  </div>
+
+  <div class="card summary" id="summary">
+    <h2>Summary</h2>
+    <div class="stats">
+      <div class="stat positive"><div class="num" id="countPos">0</div><div class="lbl">Positive</div></div>
+      <div class="stat negative"><div class="num" id="countNeg">0</div><div class="lbl">Negative</div></div>
+      <div class="stat neutral"><div class="num" id="countNeu">0</div><div class="lbl">Neutral</div></div>
+    </div>
+    <div class="bar-row"><span class="name">Positive</span><div class="bar-track"><div class="bar-fill positive" id="barPos"></div></div><span class="pct" id="pctPos">0%</span></div>
+    <div class="bar-row"><span class="name">Negative</span><div class="bar-track"><div class="bar-fill negative" id="barNeg"></div></div><span class="pct" id="pctNeg">0%</span></div>
+    <div class="bar-row"><span class="name">Neutral</span><div class="bar-track"><div class="bar-fill neutral" id="barNeu"></div></div><span class="pct" id="pctNeu">0%</span></div>
+  </div>
+
+  <div class="card results" id="results">
+    <h2>Detailed Results</h2>
+    <div id="resultList"></div>
+  </div>
+
+  <footer>Powered by VADER sentiment analysis · Flask</footer>
+</div>
+
 <script>
-async function run() {
-  const texts = document.getElementById("input").value
-                  .split("\n").filter(t => t.trim());
-  const res = await fetch("/analyze", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({texts})
+const input = document.getElementById("input");
+const btn = document.getElementById("analyzeBtn");
+const btnText = document.getElementById("btnText");
+
+// Live count of reviews as the user types
+input.addEventListener("input", () => {
+  const n = getReviews().length;
+  document.getElementById("count").textContent =
+    n + (n === 1 ? " review entered" : " reviews entered");
+});
+
+function getReviews() {
+  return input.value.split("\n").map(t => t.trim()).filter(t => t.length > 0);
+}
+
+function showError(msg) {
+  const box = document.getElementById("error");
+  box.textContent = msg;
+  box.style.display = "block";
+}
+
+function clearError() {
+  document.getElementById("error").style.display = "none";
+}
+
+function setLoading(isLoading) {
+  btn.disabled = isLoading;
+  btn.classList.toggle("loading", isLoading);
+  btnText.textContent = isLoading ? "Analyzing..." : "Analyze Reviews";
+}
+
+function renderSummary(results) {
+  const total = results.length;
+  const counts = { positive: 0, negative: 0, neutral: 0 };
+  results.forEach(r => counts[r.sentiment]++);
+
+  document.getElementById("countPos").textContent = counts.positive;
+  document.getElementById("countNeg").textContent = counts.negative;
+  document.getElementById("countNeu").textContent = counts.neutral;
+
+  const pct = k => total ? Math.round((counts[k] / total) * 100) : 0;
+  ["Pos", "Neg", "Neu"].forEach(s => {
+    const key = s.toLowerCase().replace("pos", "positive").replace("neg", "negative").replace("neu", "neutral");
+    document.getElementById("pct" + s).textContent = pct(key) + "%";
+    // Small delay so the bar animates after the section appears
+    setTimeout(() => {
+      document.getElementById("bar" + s).style.width = pct(key) + "%";
+    }, 50);
   });
-  document.getElementById("output").textContent =
-    JSON.stringify(await res.json(), null, 2);
+
+  document.getElementById("summary").style.display = "block";
+}
+
+function renderResults(results) {
+  const list = document.getElementById("resultList");
+  list.innerHTML = "";   // clear old results
+
+  results.forEach(r => {
+    const item = document.createElement("div");
+    item.className = "result-item " + r.sentiment;
+
+    const text = document.createElement("div");
+    text.className = "result-text";
+    text.textContent = r.text;          // textContent prevents HTML injection
+
+    const right = document.createElement("div");
+    const badge = document.createElement("span");
+    badge.className = "badge " + r.sentiment;
+    badge.textContent = r.sentiment;
+
+    const score = document.createElement("span");
+    score.className = "score";
+    score.textContent = "score: " + r.score;
+
+    right.appendChild(badge);
+    right.appendChild(score);
+    item.appendChild(text);
+    item.appendChild(right);
+    list.appendChild(item);
+  });
+
+  document.getElementById("results").style.display = "block";
+}
+
+async function run() {
+  clearError();
+  const reviews = getReviews();
+
+  if (reviews.length === 0) {
+    showError("Please enter at least one review before analyzing.");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const res = await fetch("/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texts: reviews })
+    });
+
+    if (!res.ok) throw new Error("Server returned status " + res.status);
+
+    const results = await res.json();
+    renderSummary(results);
+    renderResults(results);
+  } catch (err) {
+    showError("Something went wrong while analyzing. Please try again. (" + err.message + ")");
+  } finally {
+    setLoading(false);
+  }
 }
 </script>
 </body>
